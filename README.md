@@ -229,7 +229,3 @@ Paper in preparation. Until it is public, cite the repository:
   url    = {https://github.com/TODO/answer-pooling}
 }
 ```
-
-## License
-
-MIT.
