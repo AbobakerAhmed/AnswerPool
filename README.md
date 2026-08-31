@@ -1,7 +1,7 @@
 # Answer Pooling
 
 Make a saturated multiple-choice benchmark hard again, using only the labels it
-already ships — and find out whether the model admits when it cannot answer.
+already ships and find out whether the model admits when it cannot answer.
 
 Pool the options of *N* questions that share a document into one exclusive
 candidate list and ask the model to assign all *N* at once. Nothing is authored
