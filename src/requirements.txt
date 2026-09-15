@@ -1,0 +1,14 @@
+# core: dataset loading and scoring
+datasets>=2.14
+transformers>=4.40
+
+# API models (Vertex / Gemini). Optional if you only run local models.
+google-genai>=0.3
+
+# local open-weight models. Optional if you only run API models.
+# grammar-constrained decoding needs xgrammar, which vllm pulls in.
+# vllm>=0.11
+
+# analysis uses only the standard library (json, random, statistics).
+# figures, optional:
+# matplotlib>=3.7
