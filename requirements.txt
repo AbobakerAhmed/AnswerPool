@@ -1,0 +1,20 @@
+# core: dataset loading and scoring
+datasets>=2.14
+transformers>=4.40
+
+# visual benchmarks (MMMU, MMMU-Pro, MathVista, ScienceQA) store images as PNG
+pillow>=10
+
+# API models. google-genai for Vertex / Gemini (--backend api), openai for any
+# OpenAI-compatible endpoint (--backend openai). Optional if you only run local.
+google-genai>=0.3
+openai>=1.30
+anthropic>=0.40
+
+# local open-weight models. Optional if you only run API models.
+# grammar-constrained decoding needs xgrammar, which vllm pulls in.
+# vllm>=0.11
+
+# analysis uses only the standard library (json, random, statistics).
+# figures, optional:
+# matplotlib>=3.7

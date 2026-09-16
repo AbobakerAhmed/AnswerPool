@@ -1,231 +1,130 @@
-# Answer Pooling
+# Answer Pooling — Extended to Vision-Language Benchmarks
 
-Make a saturated multiple-choice benchmark hard again, using only the labels it
-already ships and find out whether the model admits when it cannot answer.
+Extends the [Answer Pooling](https://github.com/AbobakerAhmed/AnswerPool)
+de-saturation method — pool the answer options of several questions into one
+shared candidate list, withhold some golds to test for confabulation — from
+its original five text-only benchmarks (QuALITY, RACE, MMLU-Pro, GPQA,
+C-Eval) to **GPQA Diamond, HellaSwag, MMMU, MMMU-Pro, MathVista, and
+ScienceQA**, four of which are vision-language benchmarks the original paper
+never tested.
 
-Pool the options of *N* questions that share a document into one exclusive
-candidate list and ask the model to assign all *N* at once. Nothing is authored
-and no label is edited, so the transform inherits whatever validity the source
-benchmark had. Delete a gold from the pool and that question becomes
-unanswerable, so confabulation is scored in the same forward pass as accuracy,
-with no judge.
+> Barebood, Ahmed, Bu Subait, Eltahir, Hussain. *"Your Benchmark Is Not
+> Saturated: Reviving Multiple-Choice Evaluation with Answer Pooling."*
+> KAUST Academy, 2026.
 
-Two things change, and neither is a new label. Exclusivity couples the items,
-so one wrong pick costs twice. And every candidate is a plausible answer to
-*some* question in the pool, which removes the option-elimination shortcut that
-keeps MCQ scores inflated.
+## What this adds over the original repo
 
-On QuALITY the best evaluated model falls from 0.91 (MCQ) to 0.52 (exact
-assignment) while the guessing floor drops from 0.25 to 5.4e-07, and model
-rankings are preserved.
+- **`bench_datasets.py`** — loaders for the six new benchmarks, including
+  full image handling (attachment, per-question labelling, token-budget
+  estimation) for the four vision-language ones.
+- **Multimodal support end-to-end** — `run_matching.py` attaches images on
+  every backend (Gemini, Anthropic, OpenAI-compatible, and local vLLM).
+- **A model registry (`models.py`)** — one flag switches between Claude,
+  GPT, Gemini, Kimi, or local Qwen weights; per-provider quirks (key
+  routing, reasoning-effort, base URLs) resolve automatically.
+- **`report_tables.py` / `consolidate_report.py`** — regenerate the paper's
+  Tables 3/4/7/8 layout from raw result files, independently cross-checked
+  against each other.
+- **Kaggle and Ibex-ready notebooks** (`notebooks/`) — including a
+  known-issues table for the vLLM/transformers/CUDA-graph conflicts we hit
+  running vision models on T4 GPUs.
 
----
+## Results
 
-## Install
+**[MMMU-Pro: Qwen2.5-VL-7B-Instruct vs. Qwen3-VL-4B-Instruct](results/MMMU-Pro_AnswerPooling_Results.md)**
+— reproduces the paper's central finding (accuracy is statistically blind to
+confabulation) on a new modality: two models tied on every accuracy measure
+differ significantly in false-answer rate (94.7–94.9% vs. 98.8%,
+95% CI excludes zero).
 
-```bash
-pip install -r requirements.txt
-```
-
-`vllm` is optional and only needed for local open-weight models. API models go
-through Vertex: set `VERTEX_KEY=/path/to/key.json` or `GOOGLE_API_KEY=...`.
-
-Gated datasets (GPQA) and gated models need `HF_TOKEN`. To keep weights and
-datasets off your home quota, set `HF_HOME=/path/to/cache`.
+The raw, executed notebook behind these numbers is in
+[`notebooks/mmmu_pro_reproduction.ipynb`](notebooks/mmmu_pro_reproduction.ipynb) —
+real cells, real outputs, including the environment fights and one known
+inconsistency that's flagged rather than hidden.
 
 ## Quickstart
 
-Convert QuALITY, run a model, score it:
-
 ```bash
-python build_matching.py --n 5 --distractors --out groups.jsonl
-python run_matching.py --in groups.jsonl --model Qwen/Qwen3-8B --backend vllm --limit 300
-python compare.py --glob "groups.*.results.jsonl"
+pip install -r requirements.txt
+
+# does a benchmark's data fit the method? (no model needed)
+python check_fit.py --dataset mmmu_pro --n 5 --min-options 4
+
+# build the four arms
+python build_matching.py --dataset mmmu_pro --n 5 --distractors \
+    --min-options 4 --withhold 0.4 --out mmmu_pro_match.jsonl
+python build_matching.py --dataset mmmu_pro --min-options 4 --arm mcq \
+    --mirror mmmu_pro_match.jsonl --out mmmu_pro_mcq.jsonl
+
+# run against a model (see models.py for the full registry)
+python run_matching.py --in mmmu_pro_match.jsonl --model opus-5
+python run_matching.py --in mmmu_pro_match.jsonl \
+    --model Qwen/Qwen2.5-VL-7B-Instruct --backend vllm --tp 2
+
+# tables
+python report_tables.py --bench mmmu_pro --dir . --out report
 ```
 
-Add the abstention axis by withholding 40 percent of gold answers:
+No local GPU? See [`docs/KAGGLE.md`](docs/KAGGLE.md) (free T4s) or
+[`docs/IBEX.md`](docs/IBEX.md) (KAUST HPC, A100s).
 
-```bash
-python build_matching.py --n 5 --distractors --withhold 0.4 --out wh40.jsonl
-python run_matching.py --in wh40.jsonl --model Qwen/Qwen3-8B --backend vllm --limit 300
-```
+## Which benchmarks actually fit the method
 
-`compare.py` then reports accuracy, exact assignment, false-answer and
-false-abstention rates, and paired bootstraps.
+Not every benchmark suits answer pooling equally. See
+[`docs/BENCHMARK_FIT.md`](docs/BENCHMARK_FIT.md) for the full analysis;
+summary:
 
-## What gets measured
-
-| metric | floor | what it catches |
+| Benchmark | Fit | Why |
 |---|---|---|
-| per-pair accuracy | 1/M | partial credit, keeps statistical power |
-| exact assignment | 1/(M!/(M-N)!) | the headline number, every slot right |
-| false-answer rate | — | answered a question whose gold was withheld |
-| false-abstention rate | — | declined when the gold was in fact present |
-| parse failure | — | reported separately, never folded into wrong answers |
+| GPQA Diamond | Good | Adversarial expert distractors, clean grouping |
+| ScienceQA | Good | Large topic groups, clean once filtered to ≥4 options |
+| MMMU-Pro | Good | 95.7% verifier retention — cleanest tested so far |
+| MMMU | Partial | Many items answerable without the image |
+| HellaSwag | Partial | Machine-generated distractors leak style cues |
+| MathVista | Weak | Half free-form, numeric-answer collisions, non-adversarial distractors |
 
-Both floors are printed by the builder for the *N* and *M* you actually built.
+## Repository layout
 
-## Supported benchmarks
+```
+build_matching.py       pool/withhold/mirror — the core transform
+run_matching.py          model inference, every backend, multimodal
+bench_datasets.py        loaders for the 6 new benchmarks
+models.py                model registry (Claude/GPT/Gemini/Kimi/local)
+check_fit.py             does a benchmark's data satisfy the method?
+report_tables.py         paper-format Tables 3/4/7/8
+consolidate_report.py    independent cross-check of report_tables.py
+verify_wellformed.py     model-based ambiguity screen (paper Section 3.3)
+smoke_test.py            offline end-to-end test, no keys/GPU needed
+notebooks/               Kaggle + Ibex templates, and the real MMMU-Pro run
+docs/                    platform setup, troubleshooting, benchmark fit
+results/                 written-up findings
+```
 
-| `--dataset` | context | grouped by | notes |
-|---|---|---|---|
-| `quality` (default) | long passage | document | 13 to 20 questions per article |
-| `race` | short passage | document | `--race-config all\|high\|middle` |
-| `mmlupro` | none | topic | 10 options, use `--max-distractors 7 --n 3` |
-| `gpqa` | none | subdomain | gated on the Hub, needs `HF_TOKEN` |
-| `ceval` | none | subject | Chinese |
-
-Passage-free benchmarks cannot run the arms that manipulate passage
-availability (`no_passage`, `freeform`, `mcq_none`, `mcq_prose`).
-
-## Arms
-
-| `--arm` | what the model sees |
-|---|---|
-| `matching` | the pooled assignment task (the transform) |
-| `mcq` | standard MCQ, one question at a time, the paired baseline |
-| `no_passage` / `mcq_no_passage` | the same without the passage (closed-book controls) |
-| `choices_only` | the pool alone, no questions and no passage (partial-input probe) |
-| `mcq_choices_only` | options alone, per item, the uncapped version of the same probe |
-| `mcq_none` | delete-gold MCQ with "none of these" printed as an option |
-| `mcq_prose` | delete-gold MCQ with a prose permission to write none, no printed option |
-| `easy` | pooled, but padded from unrelated documents (format-tax control) |
-| `freeform` | open-ended, mismatched passage, judged by `judge_freeform.py` |
-
-**Arms that must be mirror-built.** `mcq`, `mcq_no_passage`, `mcq_none`,
-`mcq_prose`, `easy` and `freeform` take `--mirror <a built matching file>` so
-they inherit its exact questions and withheld set. Do not build them
-independently: group ids match but the questions inside them will not, because
-per-group rng consumption differs between arms.
+## Verify the pipeline works before spending API/GPU budget
 
 ```bash
-python build_matching.py --arm mcq --mirror groups.jsonl --out groups_mcq.jsonl
+python smoke_test.py
 ```
 
-## The screens
+Builds and scores all six new benchmark configurations against synthetic
+data — no network, no API keys, no GPU. If this passes, the only things
+that can go wrong on a real run are credentials or dataset access.
 
-Three judge-free filters for questions a benchmark should not be scoring.
+## Citing
 
-**Solvable without the context.** Run the closed-book arm, then filter:
-
-```bash
-python build_matching.py --arm mcq_no_passage --out np.jsonl
-# run np.jsonl on 3 models, then
-python filter_blind.py --glob "np.*.results.jsonl" --votes 2 --out blind.txt
-python build_matching.py --n 5 --distractors --exclude blind.txt --out filtered.jsonl
-```
-
-**Ambiguous once pooled.** Screener models see the gold revealed and judge
-whether any other candidate also answers:
-
-```bash
-python verify_wellformed.py --src groups.jsonl --out flagged.txt
-python compare.py --glob "groups.*.results.jsonl" --exclude-groups flagged.txt
-```
-
-**Separable by style.** Run `--arm choices_only`. Accuracy at the 1/M floor
-means a style-homogeneous pool. Anything above it, bounded by 1/N, measures how
-far golds stand apart from their distractors.
-
-## File naming
-
-Both stages write JSONL. `run_matching.py` derives its output name from the
-input file and the model, and `compare.py` reads that convention to label rows:
-
-```
-<stem>.jsonl  ->  <stem>.<model>.results.jsonl
-```
-
-Keep that shape if you rename anything, or the comparison tables will merge or
-mislabel runs.
-
-## Analysis scripts
-
-| script | question it answers |
-|---|---|
-| `compare.py` | all tables, paired bootstraps, rankings |
-| `verify_wellformed.py` | does pooling leave the questions uniquely answerable? |
-| `filter_blind.py` | which questions are answerable without the context? |
-| `validity.py` | which closed-form measure tracks open-ended confabulation? |
-| `own_set.py` | do errors come from a question's own options or its neighbours'? |
-| `position_bias.py` | does the printed none option's position affect abstention? |
-| `judge_freeform.py` | classify open-ended responses as ANSWER or ABSTAIN |
-| `rescore.py` | re-parse saved raw outputs offline, no re-runs |
-| `estimate_filter.py`, `diagnose.py`, `check_data.py` | dataset and scoring sanity checks |
-
-Run any of them with `--help` for the full flag list.
-
-## Notes that will save you time
-
-**Constrained decoding is on by default for vLLM.** Output format compliance
-becomes 100 percent by construction. `--no-guided` disables it and is only
-useful as a control. Without it, format failures masquerade as wrong answers.
-
-**Resume is content-checked.** Every result stores a hash of its exact prompt,
-so re-running after rebuilding an input discards stale answers rather than
-silently pairing old responses with new questions.
-
-**Raw outputs are stored** (4000 chars), so `rescore.py` can re-parse
-everything offline if the parser improves. A shorter cap once truncated the
-outputs of a model that echoes questions before answering, which invalidated a
-run.
-
-**The answer alphabet ends at Z.** With `--distractors`, `N > 6` overflows a
-26-letter pool. The builder skips such groups and reports the count.
-
-**Verify alignment after any rebuild:**
-
-```bash
-python -c "
-import json
-def q(f, per_q):
-    d = {}
-    for l in open(f, encoding='utf-8'):
-        l = l.strip()
-        if not l: continue
-        r = json.loads(l)
-        if per_q: d[(r['group_id'], r.get('q_index', 0))] = r['questions'][0]
-        else:
-            for i, x in enumerate(r['questions']): d[(r['group_id'], i)] = x
-    return d
-a, b = q('groups.jsonl', False), q('groups_mcq.jsonl', True)
-sh = set(a) & set(b)
-print('identical:', sum(a[k] == b[k] for k in sh), '/', len(sh))
-"
-```
-
-## References
-
-The transform authors nothing, so every question and label comes from the
-source benchmarks below. Cite them alongside this repo if you publish numbers.
-
-- **QuALITY** — Pang et al., *QuALITY: Question Answering with Long Input
-  Texts, Yes!*, NAACL 2022. [arXiv:2112.08608](https://arxiv.org/abs/2112.08608)
-- **RACE** — Lai et al., *RACE: Large-scale ReAding Comprehension Dataset From
-  Examinations*, EMNLP 2017. [arXiv:1704.04683](https://arxiv.org/abs/1704.04683)
-- **MMLU-Pro** — Wang et al., *MMLU-Pro: A More Robust and Challenging
-  Multi-Task Language Understanding Benchmark*, NeurIPS 2024 Datasets and
-  Benchmarks. [arXiv:2406.01574](https://arxiv.org/abs/2406.01574)
-- **GPQA** — Rein et al., *GPQA: A Graduate-Level Google-Proof Q&A Benchmark*,
-  COLM 2024. [arXiv:2311.12022](https://arxiv.org/abs/2311.12022)
-- **C-Eval** — Huang et al., *C-Eval: A Multi-Level Multi-Discipline Chinese
-  Evaluation Suite for Foundation Models*, NeurIPS 2023.
-  [arXiv:2305.08322](https://arxiv.org/abs/2305.08322)
-
-Local inference uses vLLM — Kwon et al., *Efficient Memory Management for Large
-Language Model Serving with PagedAttention*, SOSP 2023.
-[arXiv:2309.06180](https://arxiv.org/abs/2309.06180)
-
-## Citation
-
-Paper in preparation. Until it is public, cite the repository:
+If you use this extension, please cite the original paper and note this
+repo as an unofficial extension:
 
 ```bibtex
-@software{answer_pooling,
-  title  = {Answer Pooling: turning saturated multiple-choice benchmarks
-            into exclusive assignment tasks},
-  author = {TODO},
-  year   = {2026},
-  url    = {https://github.com/TODO/answer-pooling}
+@misc{answerpool2026,
+  title={Your Benchmark Is Not Saturated: Reviving Multiple-Choice Evaluation with Answer Pooling},
+  author={Barebood, Nawaf and Ahmed, Abobaker and Bu Subait, Hussain and Eltahir, Mohamed and Hussain, Tanveer},
+  year={2026},
+  howpublished={KAUST Academy}
 }
 ```
+
+## License
+
+See [`LICENSE`](LICENSE) — currently a placeholder pending verification
+against the original repository's licensing terms.
