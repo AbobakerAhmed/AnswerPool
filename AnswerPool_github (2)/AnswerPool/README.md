@@ -1,8 +1,8 @@
-# Answer Pooling — Extended to Vision-Language Benchmarks
+# Answer Pooling Extended to Vision-Language Benchmarks
 
 Extends the [Answer Pooling](https://github.com/AbobakerAhmed/AnswerPool)
-de-saturation method — pool the answer options of several questions into one
-shared candidate list, withhold some golds to test for confabulation — from
+de-saturation method pool the answer options of several questions into one
+shared candidate list, withhold some golds to test for confabulation from
 its original five text-only benchmarks (QuALITY, RACE, MMLU-Pro, GPQA,
 C-Eval) to **GPQA Diamond, HellaSwag, MMMU, MMMU-Pro, MathVista, and
 ScienceQA**, four of which are vision-language benchmarks the original paper
@@ -14,15 +14,15 @@ never tested.
 
 ## What this adds over the original repo
 
-- **`bench_datasets.py`** — loaders for the six new benchmarks, including
+- **`bench_datasets.py`** loaders for the six new benchmarks, including
   full image handling (attachment, per-question labelling, token-budget
   estimation) for the four vision-language ones.
-- **Multimodal support end-to-end** — `run_matching.py` attaches images on
+- **Multimodal support end-to-end**  `run_matching.py` attaches images on
   every backend (Gemini, Anthropic, OpenAI-compatible, and local vLLM).
-- **A model registry (`models.py`)** — one flag switches between Claude,
+- **A model registry (`models.py`)** one flag switches between Claude,
   GPT, Gemini, Kimi, or local Qwen weights; per-provider quirks (key
   routing, reasoning-effort, base URLs) resolve automatically.
-- **`report_tables.py` / `consolidate_report.py`** — regenerate the paper's
+- **`report_tables.py` / `consolidate_report.py`** regenerate the paper's
   Tables 3/4/7/8 layout from raw result files, independently cross-checked
   against each other.
 - **Kaggle and Ibex-ready notebooks** (`notebooks/`) — including a
@@ -32,13 +32,13 @@ never tested.
 ## Results
 
 **[MMMU-Pro: Qwen2.5-VL-7B-Instruct vs. Qwen3-VL-4B-Instruct](results/MMMU-Pro_AnswerPooling_Results.md)**
-— reproduces the paper's central finding (accuracy is statistically blind to
+ reproduces the paper's central finding (accuracy is statistically blind to
 confabulation) on a new modality: two models tied on every accuracy measure
 differ significantly in false-answer rate (94.7–94.9% vs. 98.8%,
 95% CI excludes zero).
 
 The raw, executed notebook behind these numbers is in
-[`notebooks/mmmu_pro_reproduction.ipynb`](notebooks/mmmu_pro_reproduction.ipynb) —
+[`notebooks/mmmu_pro_reproduction.ipynb`](notebooks/mmmu_pro_reproduction.ipynb) 
 real cells, real outputs, including the environment fights and one known
 inconsistency that's flagged rather than hidden.
 
