@@ -1,6 +1,6 @@
 # Your Benchmark Is Not Saturated: Reviving Multiple-Choice Evaluation with Answer Pooling
-**Authors:** Mohamed Eltahir\*, Nawaf Barebood\*, Abobaker Ahmed\*, Hussain Bu Subait, Naeemullah Khan and Tanveer Hussain.
-<sub>\*Equal contribution.</sub>
+**Authors:** Mohamed Eltahir, Nawaf Barebood, Abobaker Ahmed, Hussain Bu Subait, Tanveer Hussain and Naeemullah Khan.
+
 
 <div align="center">
 
