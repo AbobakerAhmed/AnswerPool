@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![arXiv](https://img.shields.io/badge/arXiv-XXXX.XXXXX-b31b1b)](https://arxiv.org/abs/XXXX.XXXXX)
+[![arXiv](https://img.shields.io/badge/arXiv-2609.37494-b31b1b)](https://arxiv.org/abs/2609.37494)
 
 </div>
 
@@ -331,13 +331,13 @@ If you use answer pooling in your research, please cite:
 
 
 ```bibtex
-@misc{eltahir2026answerpooling,
-      title={Your Benchmark Is Not Saturated: Reviving Multiple-Choice Evaluation with Answer Pooling},
-      author={Mohamed Eltahir and Nawaf Barebood and Abobaker Ahmed and Hussain Bu Subait and Naeemullah Khan and Tanveer Hussain},
+@misc{eltahir2026benchmarksaturatedrevivingmultiplechoice,
+      title={Your Benchmark Is Not Saturated: Reviving Multiple-Choice Evaluation with Answer Pooling}, 
+      author={Mohamed Eltahir and Abobaker Ahmed and Nawaf Barebood and Hussain Bu Subayt and Tanveer Hussain and Naeemullah Khan},
       year={2026},
-      eprint={XXXX.XXXXX},
+      eprint={2609.37494},
       archivePrefix={arXiv},
       primaryClass={cs.CL},
-      url={https://arxiv.org/abs/XXXX.XXXXX},
+      url={https://arxiv.org/abs/2609.37494}, 
 }
 ```
